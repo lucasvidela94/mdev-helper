@@ -2,7 +2,7 @@
 
 CLI tool for managing mobile development environments (React Native, Flutter, etc.)
 
-[![Release](https://img.shields.io/github/v/release/lucasvidela94/mdev-helper)](https://github.com/lucasvidela94/mdev-helper/releases)
+[![Release](https://img.shields.io/github/v/release/lucasvidela94/mdev-helper?include_prereleases)](https://github.com/lucasvidela94/mdev-helper/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lucasvidela94/mdev-helper)](https://goreportcard.com/report/github.com/lucasvidela94/mdev-helper)
 
 ## Features
