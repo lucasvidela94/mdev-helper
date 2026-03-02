@@ -7,13 +7,13 @@ CLI tool for managing mobile development environments (React Native, Flutter, et
 
 ## Features
 
-- 🔍 **Doctor** - Comprehensive environment diagnostics with 5 checkers (disk, ports, versions, duplicates, performance)
-- 🧹 **Clean** - Remove caches and temporary files (Gradle, npm, Metro, Flutter, Android)
-- 📱 **Emulator** - Manage Android emulators (list, status)
-- 📊 **Logs** - Stream logs from Android, Metro, and Flutter
-- ⚙️ **Config** - Interactive configuration wizard with auto-detection
-- 🔄 **Update** - Self-updating capability
-- 🏥 **Repair** - Fix broken development tools
+- **Doctor** - Comprehensive environment diagnostics with 5 checkers (disk, ports, versions, duplicates, performance)
+- **Clean** - Remove caches and temporary files (Gradle, npm, Metro, Flutter, Android)
+- **Emulator** - Manage Android emulators (list, status)
+- **Logs** - Stream logs from Android, Metro, and Flutter
+- **Config** - Interactive configuration wizard with auto-detection
+- **Update** - Self-updating capability
+- **Repair** - Fix broken development tools
 
 ## Installation
 
@@ -304,4 +304,4 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ---
 
-Built with ❤️ using Go and the Spec-Driven Development methodology.
+Built with Go and the Spec-Driven Development methodology.
