@@ -1,0 +1,1 @@
+Dart SDK version: 3.5.0 (stable) (Tue Jul 30 02:17:59 2024 -0700) on "linux_x64"

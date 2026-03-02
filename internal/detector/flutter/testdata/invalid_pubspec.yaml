@@ -1,0 +1,9 @@
+name: broken_project
+version: 
+description: This YAML is malformed
+environment
+  sdk: '>=3.0.0'
+dependencies:
+  flutter
+    sdk: flutter
+  http: ^1.0.0
