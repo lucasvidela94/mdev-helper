@@ -4,10 +4,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sombi/mobile-dev-helper/internal/detector/pathtools"
-	"github.com/sombi/mobile-dev-helper/internal/detector/shell"
-	"github.com/sombi/mobile-dev-helper/internal/service"
+	"github.com/sombi/mobile-dev-helper/internal/doctor"
+	"github.com/sombi/mobile-dev-helper/internal/doctor/checker"
+	"github.com/sombi/mobile-dev-helper/internal/doctor/formatter"
 	"github.com/spf13/cobra"
+)
+
+var (
+	doctorFormat   string
+	doctorVerbose  bool
+	doctorNoColor  bool
+	doctorExitCode bool
 )
 
 // doctorCmd represents the doctor command.
@@ -16,155 +23,81 @@ var doctorCmd = &cobra.Command{
 	Short: "Diagnose environment issues",
 	Long: `Diagnose common issues with mobile development environments.
 
-This command will check:
-- Node.js version and path
-- Java/JDK installation
-- Android SDK configuration
-- Gradle wrapper status
-- Environment variables
-- Project-specific configurations`,
-	Run: func(cmd *cobra.Command, args []string) {
-		projectPath, _ := os.Getwd()
-		envService := service.NewEnvironmentService(projectPath)
-		report := envService.Detect()
+This command performs comprehensive checks on your mobile development environment:
+- Disk space availability
+- Port availability (Metro, ADB)
+- Tool versions (Node.js, Java, Android SDK, Flutter)
+- Duplicate SDK installations
+- Performance optimizations
 
-		fmt.Println("=== Environment Diagnosis ===")
-		fmt.Println()
+Exit codes:
+  0 - All checks passed
+  1 - Warnings present (no errors)
+  2 - Errors present
 
-		// JDK Status
-		fmt.Print("JDK: ")
-		if report.JDK != nil && report.JDK.IsValid {
-			fmt.Printf("✓ %s (%s) - %s\n", report.JDK.Version, report.JDK.MajorVersion, report.JDK.Vendor)
-		} else {
-			fmt.Println("✗ Not found")
-		}
-
-		// Android SDK Status
-		fmt.Print("Android SDK: ")
-		if report.SDK != nil && report.SDK.IsValid {
-			fmt.Printf("✓ %s\n", report.SDK.Path)
-			if len(report.SDK.Platforms) > 0 {
-				fmt.Printf("  Platforms: %v\n", report.SDK.Platforms)
-			}
-			if len(report.SDK.BuildTools) > 0 {
-				fmt.Printf("  Build Tools: %v\n", report.SDK.BuildTools)
-			}
-		} else {
-			fmt.Println("✗ Not found")
-		}
-
-		// Node.js Status
-		fmt.Print("Node.js: ")
-		if report.Node != nil && report.Node.IsValid {
-			fmt.Printf("✓ %s\n", report.Node.Version)
-		} else {
-			fmt.Println("✗ Not found")
-		}
-
-		// Gradle Status
-		fmt.Print("Gradle: ")
-		if report.Gradle != nil && report.Gradle.IsValid {
-			fmt.Printf("✓ %s\n", report.Gradle.GradleVersion)
-		} else if report.Gradle != nil && !report.Gradle.HasWrapper {
-			fmt.Println("○ No gradlew found")
-		} else {
-			fmt.Println("✗ Broken")
-		}
-
-		// Expo Status
-		if report.Expo != nil && report.Expo.HasExpo {
-			fmt.Print("Expo: ")
-			if report.Expo.IsManaged {
-				fmt.Println("✓ Managed Workflow")
-			} else if report.Expo.IsBare {
-				fmt.Println("✓ Bare Workflow")
-			}
-		}
-
-		// Flutter Status
-		fmt.Print("Flutter: ")
-		if report.Flutter != nil && report.Flutter.IsValid {
-			fmt.Printf("✓ %s (%s)\n", report.Flutter.Version, report.Flutter.Channel)
-			if report.Flutter.Doctor != nil && len(report.Flutter.Doctor.Issues) > 0 {
-				fmt.Printf("  Issues: %d found\n", len(report.Flutter.Doctor.Issues))
-			}
-		} else {
-			fmt.Println("✗ Not found")
-		}
-
-		// Dart Status
-		fmt.Print("Dart: ")
-		if report.Dart != nil && report.Dart.IsValid {
-			if report.Dart.IsBundled {
-				fmt.Printf("✓ %s (bundled with Flutter)\n", report.Dart.Version)
-			} else {
-				fmt.Printf("✓ %s\n", report.Dart.Version)
-			}
-		} else {
-			fmt.Println("✗ Not found")
-		}
-
-		// Shell Info
-		shellInfo := shell.Detect()
-		fmt.Printf("Shell: ✓ %s (%s)\n", shellInfo.Name, shellInfo.Type)
-		if shellInfo.ConfigFile != "" {
-			fmt.Printf("  Config: %s\n", shellInfo.ConfigFilePath)
-		}
-
-		// PATH Tools
-		tools := pathtools.Detect()
-		fmt.Println("\n=== PATH Tools ===")
-		fmt.Printf("adb: %s\n", formatToolStatus(tools.ADB))
-		fmt.Printf("emulator: %s\n", formatToolStatus(tools.Emulator))
-		fmt.Printf("sdkmanager: %s\n", formatToolStatus(tools.SDKManager))
-		fmt.Printf("node: %s\n", formatToolStatus(tools.Node))
-		fmt.Printf("java: %s\n", formatToolStatus(tools.Java))
-
-		fmt.Println()
-
-		// Warnings
-		if len(report.Warnings) > 0 {
-			fmt.Println("=== Warnings ===")
-			for _, warning := range report.Warnings {
-				fmt.Printf("⚠ %s\n", warning)
-			}
-			fmt.Println()
-		}
-
-		// Errors
-		if len(report.Errors) > 0 {
-			fmt.Println("=== Errors ===")
-			for _, err := range report.Errors {
-				fmt.Printf("✗ %s\n", err)
-			}
-			fmt.Println()
-		}
-
-		// Summary
-		if len(report.Errors) == 0 && len(report.Warnings) == 0 {
-			fmt.Println("✓ Environment looks healthy!")
-		} else if len(report.Errors) == 0 {
-			fmt.Println("✓ No critical errors, but there are warnings.")
-		} else {
-			fmt.Println("✗ Environment has issues that need attention.")
-		}
-	},
+Use --format=json for machine-readable output suitable for CI/CD pipelines.`,
+	RunE: runDoctor,
 }
 
 func init() {
 	rootCmd.AddCommand(doctorCmd)
+
+	doctorCmd.Flags().StringVarP(&doctorFormat, "format", "f", "human", "Output format (human, json)")
+	doctorCmd.Flags().BoolVarP(&doctorVerbose, "verbose", "v", false, "Show detailed information")
+	doctorCmd.Flags().BoolVar(&doctorNoColor, "no-color", false, "Disable colored output")
+	doctorCmd.Flags().BoolVar(&doctorExitCode, "exit-code", true, "Exit with non-zero code on errors/warnings")
 }
 
-// formatToolStatus formats the status of a tool for display.
-func formatToolStatus(tool *pathtools.ToolInfo) string {
-	if tool.InPath {
-		if tool.Version != "" {
-			return fmt.Sprintf("✓ %s (%s)", tool.Path, tool.Version)
+func runDoctor(cmd *cobra.Command, args []string) error {
+	projectPath, _ := os.Getwd()
+
+	// Create runner and register all checkers
+	runner := doctor.NewRunner()
+	registerCheckers(runner, projectPath)
+
+	// Run all checks
+	report := runner.Run()
+
+	// Get formatter
+	f, ok := formatter.DefaultRegistry.Get(doctorFormat)
+	if !ok {
+		return fmt.Errorf("unknown format: %s (available: %v)", doctorFormat, formatter.DefaultRegistry.List())
+	}
+
+	// Configure formatter options for human format
+	if _, ok := f.(*formatter.HumanFormatter); ok {
+		opts := formatter.FormatOptions{
+			UseColors:  !doctorNoColor,
+			Verbose:    doctorVerbose,
+			ShowPassed: true,
 		}
-		return fmt.Sprintf("✓ %s", tool.Path)
+		// Create new formatter with options (HumanFormatter doesn't have SetOptions, so we get a new one)
+		f = formatter.NewHumanFormatter(opts)
 	}
-	if tool.Path != "" {
-		return fmt.Sprintf("○ Found at %s (not in PATH)", tool.Path)
+
+	// Format and output report
+	if err := f.Format(report, os.Stdout); err != nil {
+		return fmt.Errorf("failed to format report: %w", err)
 	}
-	return "✗ Not found"
+
+	// Exit with appropriate code if requested
+	if doctorExitCode {
+		os.Exit(report.Summary.ExitCode)
+	}
+
+	return nil
+}
+
+// registerCheckers registers all available checkers with the runner.
+func registerCheckers(runner *doctor.Runner, projectPath string) {
+	// Environment checks
+	runner.Register(checker.NewDiskChecker("."))
+	runner.Register(checker.NewPortChecker())
+	runner.Register(checker.NewDuplicateSDKChecker())
+
+	// Tool checks
+	runner.Register(checker.NewToolVersionChecker())
+
+	// Performance checks
+	runner.Register(checker.NewPerformanceChecker(projectPath))
 }
