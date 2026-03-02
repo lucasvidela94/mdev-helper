@@ -2,9 +2,6 @@ package checker
 
 import (
 	"fmt"
-	"os"
-	"runtime"
-	"syscall"
 
 	"github.com/sombi/mobile-dev-helper/internal/doctor"
 )
@@ -92,27 +89,6 @@ func (d *DiskChecker) Check() doctor.CheckResult {
 	return result
 }
 
-// getDiskSpace returns free and total space for the given path.
-// This implementation works for Unix-like systems.
-func getDiskSpace(path string) (freeBytes, totalBytes uint64, err error) {
-	// Ensure path exists
-	if _, err := os.Stat(path); err != nil {
-		return 0, 0, err
-	}
-
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return 0, 0, err
-	}
-
-	// Calculate free and total space
-	// Blocks available to non-superuser * block size
-	freeBytes = stat.Bavail * uint64(stat.Bsize)
-	totalBytes = stat.Blocks * uint64(stat.Bsize)
-
-	return freeBytes, totalBytes, nil
-}
-
 // GetFreeSpaceGB returns the free space in GB for the given path.
 func GetFreeSpaceGB(path string) (float64, error) {
 	freeBytes, _, err := getDiskSpace(path)
@@ -120,12 +96,4 @@ func GetFreeSpaceGB(path string) (float64, error) {
 		return 0, err
 	}
 	return float64(freeBytes) / (1024 * 1024 * 1024), nil
-}
-
-// init registers the disk checker on non-Windows systems.
-func init() {
-	if runtime.GOOS != "windows" {
-		// Disk space checker is registered by default on Unix systems
-		// Windows would need a different implementation
-	}
 }
